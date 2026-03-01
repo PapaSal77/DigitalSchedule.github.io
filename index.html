@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Team Duty Roster</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 50px; background: #f4f4f9; }
+        .card { background: white; padding: 30px; border-radius: 15px; display: inline-block; shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .team-1 { color: #2ecc71; font-size: 3em; }
+        .team-2 { color: #3498db; font-size: 3em; }
+        .off { color: #e74c3c; font-size: 3em; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Today's Duty</h1>
+        <div id="status">Loading...</div>
+        <p id="date"></p>
+    </div>
+
+    <script>
+        async function updateDuty() {
+            const response = await fetch('schedule.json');
+            const config = await response.json();
+            
+            const now = new Date();
+            const dateStr = now.toISOString().split('T')[0];
+            const dayOfWeek = now.getDay(); // 0=Sun, 4=Thu, 5=Fri, 6=Sat
+
+            document.getElementById('date').innerText = now.toDateString();
+
+            // 1. Check if it's a Weekend (Fri/Sat in Kuwait)
+            if (dayOfWeek === 5 || dayOfWeek === 6) {
+                showStatus("Weekend - Off", "off");
+                return;
+            }
+
+            // 2. Check for manual "Off Days" from JSON
+            if (config.off_days.includes(dateStr)) {
+                showStatus("Holiday / Day Off", "off");
+                return;
+            }
+
+            // 3. Check for Manual Swap
+            if (config.manual_swaps[dateStr]) {
+                showStatus("Team " + config.manual_swaps[dateStr], "team-" + config.manual_swaps[dateStr]);
+                return;
+            }
+
+            // 4. Default Rotation Logic (Alternating Sun-Thu)
+            // Calculate working days passed since start_date
+            const start = new Date(config.start_date);
+            let workDays = 0;
+            let d = new Date(start);
+            while (d <= now) {
+                const day = d.getDay();
+                if (day !== 5 && day !== 6) workDays++;
+                d.setDate(d.getDate() + 1);
+            }
+
+            const currentTeam = (workDays % 2 === 0) ? 2 : 1; 
+            showStatus("Team " + currentTeam, "team-" + currentTeam);
+        }
+
+        function showStatus(text, className) {
+            const el = document.getElementById('status');
+            el.innerText = text;
+            el.className = className;
+        }
+
+        updateDuty();
+    </script>
+</body>
+</html>
